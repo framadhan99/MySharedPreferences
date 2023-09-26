@@ -1,12 +1,20 @@
 package com.fajar.mysharedpreferences.activity
 
+import android.content.Intent
+import android.os.Build
 import androidx.appcompat.app.AppCompatActivity
 import android.os.Bundle
+import android.text.TextUtils
+import android.view.MenuItem
 import android.view.View
+import android.widget.Toast
+import androidx.annotation.RequiresApi
 import com.fajar.mysharedpreferences.R
+import com.fajar.mysharedpreferences.UserPreference
+import com.fajar.mysharedpreferences.databinding.ActivityFormUserPreferenceBinding
 import com.fajar.mysharedpreferences.model.UserModel
 
-class FormUserPreferenceActivity : AppCompatActivity(), View.OnClickListener  {
+class FormUserPreferenceActivity : AppCompatActivity(), View.OnClickListener {
 
     companion object {
         const val EXTRA_TYPE_FORM = "extra_type_form"
@@ -19,11 +27,135 @@ class FormUserPreferenceActivity : AppCompatActivity(), View.OnClickListener  {
         private const val FIELD_IS_NOT_VALID = "Email tidak valid"
     }
 
-    private  lateinit var userModel: UserModel
-    private lateinit var binding:ActivityFormUserPreferenceBinding
+    private lateinit var userModel: UserModel
+    private lateinit var binding: ActivityFormUserPreferenceBinding
 
+    @RequiresApi(Build.VERSION_CODES.TIRAMISU)
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
-        setContentView(R.layout.activity_form_user_preference)
+        binding = ActivityFormUserPreferenceBinding.inflate(layoutInflater)
+        setContentView(binding.root)
+
+
+
+        userModel = intent.getParcelableExtra("USER", UserModel::class.java) as UserModel
+        val fromType = intent.getIntExtra(EXTRA_TYPE_FORM, 0)
+
+        var actionBarTitle = ""
+        var btnTitle = ""
+
+        when (fromType) {
+            TYPE_ADD -> {
+                actionBarTitle = "Tambah baru"
+                btnTitle = "Simpan"
+            }
+
+            TYPE_EDIT -> {
+                actionBarTitle = "Ubah"
+                btnTitle = "Update"
+                showPreferenceInForm()
+            }
+        }
+
+        supportActionBar?.title = actionBarTitle
+        supportActionBar?.setDisplayHomeAsUpEnabled(true)
+
+        binding.btnSave.setOnClickListener(this)
+
+        binding.btnSave.text = btnTitle
+    }
+
+    private fun showPreferenceInForm() {
+        binding.edtName.setText(userModel.name)
+        binding.edtEmail.setText(userModel.email)
+        binding.edtAge.setText(userModel.age.toString())
+        binding.edtPhone.setText(userModel.phoneNumber)
+        if (userModel.isLove) {
+            binding.rbYes.isChecked = true
+        } else {
+            binding.rbNo.isChecked = true
+
+        }
+    }
+
+
+    override fun onClick(view: View?) {
+        if (view?.id == R.id.btn_save) {
+            val name = binding.edtName.text.toString().trim()
+            val email = binding.edtEmail.text.toString().trim()
+            val age = binding.edtAge.text.toString().trim()
+            val phoneNo = binding.edtPhone.text.toString().trim()
+            val isLoveMU = binding.rgLoveMu.checkedRadioButtonId == R.id.rb_yes
+
+            if (name.isEmpty()) {
+                binding.edtName.error = FIELD_REQUIRED
+                return
+            }
+
+            if (email.isEmpty()) {
+                binding.edtEmail.error = FIELD_REQUIRED
+                return
+            }
+
+            if (!isValidEmail(email)) {
+                binding.edtEmail.error = FIELD_IS_NOT_VALID
+                return
+            }
+            if (age.isEmpty()) {
+                binding.edtAge.error = FIELD_REQUIRED
+                return
+            }
+
+            if (phoneNo.isEmpty()) {
+                binding.edtPhone.error = FIELD_REQUIRED
+                return
+            }
+
+            if (!TextUtils.isDigitsOnly(phoneNo)) {
+                binding.edtPhone.error = FIELD_DIGIT_ONLY
+                return
+            }
+
+            saveUser(name, email, age, phoneNo, isLoveMU)
+            val resultIntent = Intent()
+            resultIntent.putExtra(EXTRA_RESULT, userModel)
+            setResult(RESULT_CODE, resultIntent)
+
+            finish()
+        }
+    }
+
+    private fun saveUser(
+        name: String,
+        email: String,
+        age: String,
+        phoneNo: String,
+        isLoveMU: Boolean
+    ) {
+        val userPreference = UserPreference(this)
+
+        userModel.name = name
+        userModel.email = email
+        userModel.age = Integer.parseInt(age)
+        userModel.phoneNumber = phoneNo
+        userModel.isLove = isLoveMU
+
+        userPreference.setUsers(userModel)
+        Toast.makeText(this, "Data tersimpan", Toast.LENGTH_SHORT).show()
+
+    }
+
+    private fun isValidEmail(email: CharSequence): Boolean {
+        return android.util.Patterns.EMAIL_ADDRESS.matcher(email).matches()
+
+    }
+
+
+    // kode agar fromUserPreferenceActivity bisa kembali ke MainActivity
+    override fun onOptionsItemSelected(item: MenuItem): Boolean {
+        if (item.itemId == android.R.id.home) {
+            finish()
+        }
+        return super.onOptionsItemSelected(item)
     }
 }
